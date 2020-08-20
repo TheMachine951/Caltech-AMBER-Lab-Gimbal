@@ -1,0 +1,98 @@
+#include <TeensyVector.h>
+#include "SPI.h"
+#include "src/IMUs/IMUs.h"
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BNO055.h>
+#include <utility/imumaths.h>
+
+#define BNO055_SAMPLERATE_DELAY_MS (2)
+Adafruit_BNO055 bno = Adafruit_BNO055();
+
+#define YOST_TTS_LX_PIN_SS 2
+#define YOST_TTS_LX_PIN_ATT 6
+#define YOST_TTS_LX_RECEIVE_TIMEOUT 10000
+#define YOST_TTS_LX_MODE Cybercortex::IMUAbstract::MODE::FUSIONED
+
+#include <Servo.h>
+Servo servo1; //Servo attached to U-shape
+Servo servo2; //Servo attached to Ring shape
+//Note: Range of the servos are from 21 - 166 degrees (750 - 2250 PWM). 10x more resolution
+//Converting between Degree and PWM: PWM = (10.2515 * DEGREE)   |   Actual: PWM = 10.2515 * DEGREE + 549.1793
+
+float center1 = 1435; //calibrate this value
+float center2 = 1550; //calibrate this value
+Cybercortex::YOST_TTS_LX IMUmain(YOST_TTS_LX_MODE,
+           SPI,
+           YOST_TTS_LX_PIN_SS,
+           YOST_TTS_LX_PIN_ATT,
+           YOST_TTS_LX_RECEIVE_TIMEOUT);
+    
+void setup(void) {
+  
+  Serial.begin(9600);
+  Serial.println("Orientation Sensor Raw Data Test"); Serial.println("");
+
+    uint32_t rtCode = IMUmain.init();
+    if(rtCode!=1)
+    {
+      Serial.println("Failed to init IMU");
+    }
+    
+  if(!bno.begin())
+  {
+    Serial.print(" No BNO055 detected ... Check your wiring or I2C ADDR!");
+    while(1);
+  }
+  delay(1000);
+  bno.setExtCrystalUse(true);
+
+  servo1.attach(23); //servo attached to U-shape
+  servo2.attach(22); //servo attached to Loop Shape
+  servo1.writeMicroseconds(center1); //centered start
+  servo2.writeMicroseconds(center2); //centered start
+  delay(1000);
+}
+
+void loop(void)
+{
+  // Quaternion data
+  imu::Quaternion quat = bno.getQuat();
+  double q[4] = {quat.w(),quat.x(),quat.y(),quat.z()}; //Obtain quaternion float
+
+ //convert quaternion into euler ZYX angles
+ //float angle0 = atan2((2* (q[0]*q[3]+q[1]*q[2]) ) , (1-2*(sq(q[2]) + sq(q[3]))));
+ float angle1 = asin(2*(q[0]*q[2] - q[3]*q[1]));
+ float angle2 = atan2((2* (q[0]*q[1]+q[2]*q[3]) ) , (1-2*(sq(q[1]) + sq(q[2]))));
+
+ // radian to degree
+ const float pi = 3.14159;
+ //angle0 = angle0 * (180/pi); //About Z-axis
+ angle1 = angle1 * (180/pi); //Then About Y'-axis
+ angle2 = angle2 * (180/pi); //Finally About X''-axis
+
+ Serial.print("Quaternion:  ");
+ Serial.print(q[0],5); Serial.print(", "); 
+ Serial.print(q[1],5); Serial.print(", ");
+ Serial.print(q[2],5); Serial.print(", ");
+ Serial.print(q[3],5); 
+
+ Serial.print("  |  Euler:  ");
+ //Serial.print(angle1,3); Serial.print(", "); 
+ Serial.print(angle1,3); Serial.print(", ");
+ Serial.print(angle2,3); 
+
+ //Convert to PWM signal
+ angle1  = (10.2515 * angle1);
+ angle2  = (10.2515 * angle2); 
+
+ Serial.print("  |  Servo1: ");Serial.print(center1 - angle1);
+ Serial.print("  Servo2:  ");Serial.println(center2 - angle2);
+
+ //Direct servo
+   servo1.writeMicroseconds(center1 - angle1); 
+   servo2.writeMicroseconds(center2 - angle2); 
+
+ delay(BNO055_SAMPLERATE_DELAY_MS);
+}
+

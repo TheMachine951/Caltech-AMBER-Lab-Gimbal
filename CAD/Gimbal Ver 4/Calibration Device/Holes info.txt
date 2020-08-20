@@ -1,0 +1,7 @@
+M3 screws for all holes.
+
+Pillar holes in this configuration are to be tapped. 
+
+3/32 spring pins are used to constrain the shaft, just like on the gimbal.
+
+3/16 stainless steel rod is used for the shafts.

@@ -1,0 +1,10 @@
+ABS:
+
+Nozzle Temp:  230 C
+Bed Temp: 90 C
+
+
+PLA:
+
+Nozzle Temp: 195 C
+Bed Temp: 60 C
